@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add an optional Codex CLI launcher for Paperclip `2026.916.1` that fixes managed MCP authorization headers and allows only the read-only `list_projects` tool to run without an interactive approval.
+
 ## 1.1.1 — 2026-10-13
 
 - Show a compact availability summary and each Paperclip agent's live status, manual or scheduled run mode, and blocked tasks on the workbench overview.
