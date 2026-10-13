@@ -38,15 +38,17 @@ const plugin = definePlugin({
       return rows[0] as OfficeEntry;
     };
     const native = async (companyId: string): Promise<Omit<OfficeSnapshot, "entries">> => {
-      const [projects, issues, goals] = await Promise.all([
+      const [projects, issues, goals, agents] = await Promise.all([
         ctx.projects.list({ companyId, limit: 200 }),
         ctx.issues.list({ companyId, includePluginOperations: false, limit: 200 }),
         ctx.goals.list({ companyId, limit: 200 }),
+        ctx.agents.list({ companyId, limit: 200 }),
       ]);
       return {
         projects: projects.filter((project) => !project.archivedAt && !project.managedByPlugin).map((project) => ({ id: project.id, name: project.name, status: project.status })),
-        issues: issues.map((issue) => ({ id: issue.id, identifier: issue.identifier ?? null, title: issue.title, status: issue.status, projectId: issue.projectId ?? null, updatedAt: new Date(issue.updatedAt).toISOString() })),
+        issues: issues.map((issue) => ({ id: issue.id, identifier: issue.identifier ?? null, title: issue.title, status: issue.status, projectId: issue.projectId ?? null, assigneeAgentId: issue.assigneeAgentId ?? null, updatedAt: new Date(issue.updatedAt).toISOString() })),
         goals: goals.map((goal) => ({ id: goal.id, title: goal.title, status: goal.status })),
+        agents: agents.map((agent) => { const heartbeat = agent.runtimeConfig.heartbeat; return { id: agent.id, urlKey: agent.urlKey, name: agent.name, status: agent.status, scheduled: !!heartbeat && typeof heartbeat === "object" && (heartbeat as Record<string, unknown>).enabled === true, lastHeartbeatAt: agent.lastHeartbeatAt ? new Date(agent.lastHeartbeatAt).toISOString() : null }; }),
       };
     };
     const checkProject = async (companyId: string, projectId: string | null) => {
@@ -82,7 +84,7 @@ const plugin = definePlugin({
 
     ctx.data.register("office", async (params): Promise<OfficeSnapshot> => {
       const companyId = typeof params.companyId === "string" ? params.companyId : "";
-      if (!companyId) return { projects: [], issues: [], goals: [], entries: [] };
+      if (!companyId) return { projects: [], issues: [], goals: [], agents: [], entries: [] };
       const [base, entries] = await Promise.all([native(companyId), listEntries(companyId)]);
       return { ...base, entries };
     });

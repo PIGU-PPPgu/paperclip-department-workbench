@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1 — 2026-10-13
+
+- Show a compact availability summary and each Paperclip agent's live status, manual or scheduled run mode, and blocked tasks on the workbench overview.
+- Link agent and blocked task rows to their native Paperclip pages without adding agent write permissions to the plugin.
+
 ## 1.0.9 — 2026-10-13
 
 - Match Paperclip's native typography, spacing, colors, borders, and buttons across the workbench.
