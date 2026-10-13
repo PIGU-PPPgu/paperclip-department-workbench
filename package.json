@@ -9,12 +9,13 @@
   "files": [
     "dist",
     "migrations",
+    "scripts",
     "README.md"
   ],
   "scripts": {
     "build": "node esbuild.config.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test tests/*.test.ts"
+    "test": "node --experimental-strip-types --test tests/*.test.*"
   },
   "paperclipPlugin": {
     "manifest": "./dist/manifest.js",

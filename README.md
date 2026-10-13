@@ -41,6 +41,10 @@ paperclipai plugin install . --local --api-base http://127.0.0.1:3100
 
 本机宿主在增加插件 capability 时拒绝直接热升级；用**不带 `--force`** 的软卸载和本地重装可保留同一插件 ID 与插件表。能力集不变时可用 `paperclipai plugin upgrade paperclip.department-workbench`。不要使用 `--force`，它会清除插件状态。当前宿主版本的安装器会误判 `minimumHostVersion`，因此 manifest 暂不设置这个字段；请以 `plugin target` 和兼容性验收确认目标版本。
 
+## 本机 Codex 运行器兼容
+
+Paperclip `2026.916.1` 给 Codex CLI 的内置 MCP 网关写入 `headers`，而 Codex CLI `0.158` 读取 `http_headers`。`scripts/paperclip-codex-cli.mjs` 可作为 `codex_local` Agent 的 `adapterConfig.command`：它在每次启动前转换 Paperclip 管理的网关字段，并仅对实际执行 GET 的 `list_projects` 工具设置无需交互的审批；创建项目和任务仍需原有审批。随后脚本启动 `PAPERCLIP_CODEX_BIN` 指向的 Codex CLI，不改动 Paperclip 安装包。为每个 Agent 设置独立 `CODEX_HOME`，并将 `runtimeConfig.heartbeat.maxConcurrentRuns` 设为 `1`，避免并发运行覆盖短时网关令牌。上游修复后仍需实际运行一个任务验收。
+
 ## 当前边界
 
 这是可录入的第一版。文件正文在插件表中，尚无附件上传、Wiki 双向同步、GitHub 自动统计、提醒通知和细粒度项目级编辑授权；这些能力需要单独设计与验收。插件只为已授权的公司成员提供操作入口，不把 AI 草稿自动算作正式成果。
