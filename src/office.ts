@@ -22,8 +22,9 @@ export type OfficeEntry = {
 };
 export type OfficeProject = { id: string; name: string; status: string };
 export type OfficeGoal = { id: string; title: string; status: string };
-export type OfficeIssue = { id: string; identifier: string | null; title: string; status: string; projectId: string | null; updatedAt: string };
-export type OfficeSnapshot = { projects: OfficeProject[]; goals: OfficeGoal[]; issues: OfficeIssue[]; entries: OfficeEntry[] };
+export type OfficeIssue = { id: string; identifier: string | null; title: string; status: string; projectId: string | null; assigneeAgentId: string | null; updatedAt: string };
+export type OfficeAgent = { id: string; urlKey: string; name: string; status: string; scheduled: boolean; lastHeartbeatAt: string | null };
+export type OfficeSnapshot = { projects: OfficeProject[]; goals: OfficeGoal[]; issues: OfficeIssue[]; agents: OfficeAgent[]; entries: OfficeEntry[] };
 export type DocumentVersion = { number: number; date: string; note: string; content: string; authorWithAi: boolean; authorId: string | null };
 export type KrCheckin = { date: string; value: number; authorId: string | null };
 

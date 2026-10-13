@@ -3,7 +3,7 @@ import type { PaperclipPluginManifestV1 } from "@paperclipai/plugin-sdk";
 const manifest: PaperclipPluginManifestV1 = {
   id: "paperclip.department-workbench",
   apiVersion: 1,
-  version: "1.0.9",
+  version: "1.1.1",
   displayName: "部门工作台",
   description: "查看部门项目、任务、目标与工作记录的入口。",
   author: "Wisdom Campus Office",
@@ -15,6 +15,7 @@ const manifest: PaperclipPluginManifestV1 = {
     "ui.detailTab.register",
     "projects.read",
     "issues.read",
+    "agents.read",
     "goals.read",
     "goals.create",
     "access.members.read",
