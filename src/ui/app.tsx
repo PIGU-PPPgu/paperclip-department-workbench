@@ -1,6 +1,8 @@
 import { useHostLocation, useHostNavigation, usePluginAction, usePluginData, type PluginDetailTabProps, type PluginPageProps, type PluginSidebarProps, type PluginWidgetProps } from "@paperclipai/plugin-sdk/ui";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import type { DocumentVersion, EntryKind, OfficeEntry, OfficeSnapshot } from "../office.js";
+import { officePath } from "../routes.js";
 
 type View = "overview" | "calendar" | "journal" | "review" | "okr" | "milestones" | "knowledge";
 type CreateKind = Exclude<EntryKind, "report"> | "goal";
@@ -19,29 +21,135 @@ const goalName = (data: OfficeSnapshot, id: string | null) => data.goals.find((g
 const textList = (value: unknown): string[] => Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 
 const css = `
-.dw { --ink:#24352e; --muted:#697d72; --line:#dce7df; --green:#247b65; --paper:#fff; color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif; padding:18px 24px 42px; min-height:72vh; container-type:inline-size; }
-.dw * { box-sizing:border-box; }.dw button,.dw input,.dw select,.dw textarea { font:inherit; }.dw button { cursor:pointer; }.dw button:focus-visible,.dw a:focus-visible,.dw input:focus-visible,.dw select:focus-visible,.dw textarea:focus-visible { outline:2px solid #d4a861; outline-offset:2px; }
-.dw h1 { margin:0; font-size:21px; }.dw h2 { margin:0; font-size:14px; }.dw p { line-height:1.5; }.dw a { color:var(--green); text-decoration:none; }
-.dw-top { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px; }.dw-filters { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }.dw-filters label { font-size:11px; color:var(--muted); font-weight:650; }.dw-filters select,.dw-filters input { border:1px solid var(--line); border-radius:7px; padding:7px 9px; background:var(--paper); color:var(--ink); font-size:11px; min-height:33px; }
-.dw-tabs { display:flex; gap:2px; overflow-x:auto; border-bottom:1px solid var(--line); margin-bottom:17px; }.dw-tabs button { flex:none; border:0; border-bottom:2px solid transparent; background:transparent; padding:10px 12px; color:var(--muted); font-size:12px; }.dw-tabs button[aria-selected=true] { border-color:var(--green); color:var(--green); font-weight:750; }
-.dw-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:13px; }.dw-actions { display:flex; gap:7px; flex-wrap:wrap; }.dw-btn { border:1px solid #bed4c6; border-radius:7px; padding:7px 11px; background:white; color:var(--green); font-size:11px; font-weight:700; }.dw-btn:hover { background:#edf5ef; }.dw-btn:disabled { opacity:.55; cursor:wait; }.dw-btn.primary { background:var(--green); color:#fff; border-color:var(--green); }.dw-btn.primary:hover { background:#17654f; }.dw-btn.quiet { color:var(--muted); border-color:var(--line); }.dw-btn.danger { color:#a64835; border-color:#ebc6b8; }
-.dw-error { padding:10px 12px; margin:10px 0; border:1px solid #e8baa8; border-radius:7px; background:#fff2ed; color:#9b3b25; font-size:12px; }.dw-empty { padding:28px 16px; color:var(--muted); font-size:12px; }.dw-muted { color:var(--muted); font-size:11px; }
-.dw-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:14px; }.dw-stat { padding:14px 16px; border:1px solid var(--line); border-top:3px solid #72ab89; border-radius:9px; background:white; }.dw-stat:nth-child(2) { border-top-color:#759bc1; }.dw-stat:nth-child(3) { border-top-color:#d5a45a; }.dw-stat:nth-child(4) { border-top-color:#c88173; }.dw-stat span { display:block; font-size:10px; color:var(--muted); }.dw-stat strong { display:block; margin-top:7px; font-size:23px; }
-.dw-two { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(260px,.9fr); gap:13px; align-items:start; }.dw-stack { display:grid; gap:13px; }.dw-panel { border:1px solid var(--line); border-radius:10px; background:white; overflow:hidden; }.dw-panel > header { display:flex; align-items:center; justify-content:space-between; padding:12px 15px; gap:8px; border-bottom:1px solid var(--line); }.dw-panel > .body { padding:14px 15px; }.dw-row { padding:10px 0; border-bottom:1px solid #e8eee9; }.dw-row:first-child { padding-top:0; }.dw-row:last-child { padding-bottom:0; border-bottom:0; }.dw-row strong { display:block; font-size:12px; }.dw-row small { display:block; margin-top:4px; font-size:10px; color:var(--muted); }
-.dw-pill { display:inline-block; padding:3px 7px; border-radius:5px; background:#e8f3ed; color:#267357; font-size:10px; font-weight:700; }.dw-pill.warm { background:#f7ecd9; color:#95653a; }.dw-pill.gray { background:#eff1ef; color:#64736a; }
-.dw-form { padding:15px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; border:1px solid var(--line); border-radius:9px; background:#fff; margin-bottom:14px; }.dw-form h2 { grid-column:1/-1; }.dw-form label { display:grid; gap:5px; font-size:10px; color:var(--muted); font-weight:650; }.dw-form .wide { grid-column:1/-1; }.dw-form input,.dw-form select,.dw-form textarea { min-width:0; border:1px solid var(--line); border-radius:6px; padding:8px 9px; color:var(--ink); background:#fff; font-size:11px; }.dw-form textarea { min-height:75px; resize:vertical; }.dw-form .check { display:flex; align-items:center; gap:7px; }.dw-form .check input { width:auto; }.dw-form footer { grid-column:1/-1; display:flex; gap:7px; }
-.dw-kinds,.dw-cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }.dw-kinds { margin-bottom:13px; }.dw-kind,.dw-record,.dw-doc { border:1px solid var(--line); border-radius:9px; background:#fff; padding:15px; }.dw-kind strong { font-size:13px; }.dw-kind span { display:block; margin-top:14px; font-size:24px; font-weight:750; }.dw-cards { grid-template-columns:repeat(2,minmax(0,1fr)); }.dw-record h2,.dw-doc h2 { margin:9px 0 4px; }.dw-record p,.dw-doc p { font-size:11px; margin:8px 0; }.dw-card-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:11px; }.dw-card-actions .dw-btn { padding:5px 8px; }
-.dw-calendar { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); border-top:1px solid var(--line); border-left:1px solid var(--line); }.dw-calendar > * { min-height:70px; padding:5px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); background:#fff; }.dw-calendar .weekday { min-height:26px; text-align:center; color:var(--muted); font-size:10px; background:#f5f8f5; }.dw-calendar button { width:100%; border-top:0; border-left:0; color:var(--ink); text-align:left; font-size:10px; }.dw-calendar button[data-active=true] { background:#e7f3eb; }.dw-calendar em { display:block; margin-top:4px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; border-radius:3px; padding:3px; background:#e9f2ea; color:#2a775a; font-size:9px; font-style:normal; }.dw-calendar em.milestone { background:#f5e9d7; color:#966439; }
-.dw-kr { padding:13px 0; border-bottom:1px solid #e8eee9; }.dw-kr:last-child { border:0; }.dw-kr > div:first-child { display:flex; align-items:center; justify-content:space-between; gap:8px; }.dw-kr strong { font-size:11px; }.dw-progress { height:7px; overflow:hidden; border-radius:8px; background:#e6eee8; margin:8px 0; }.dw-progress i { display:block; height:100%; border-radius:8px; background:#60a783; }.dw-mini { display:flex; gap:7px; align-items:center; flex-wrap:wrap; }.dw-mini input { width:85px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:11px; }
-.dw-timeline { padding:7px 0; }.dw-milestone { position:relative; display:grid; grid-template-columns:72px 14px minmax(0,1fr) auto; gap:10px; align-items:center; padding:16px 15px; }.dw-milestone:not(:last-child)::after { content:""; position:absolute; left:103px; top:31px; bottom:-31px; width:2px; background:#d7e4da; }.dw-milestone .dot { z-index:1; width:12px; height:12px; border:2px solid #d3a55f; border-radius:50%; background:#fff; }.dw-milestone.done .dot { border-color:#4d9870; background:#4d9870; box-shadow:inset 0 0 0 2px white; }.dw-milestone time { color:#9b6b43; font-size:11px; font-weight:700; }.dw-milestone strong { display:block; font-size:12px; }.dw-milestone small { display:block; margin-top:4px; font-size:10px; color:var(--muted); }
-.dw-version { border-top:1px solid #e8eee9; padding:9px 0; }.dw-version strong { color:var(--green); font-size:11px; }.dw-version small { color:var(--muted); margin-left:7px; font-size:10px; }.dw-version details { margin-top:6px; font-size:11px; white-space:pre-wrap; }.dw-summary { min-height:0; border:1px solid var(--line); border-radius:10px; background:#fff; padding:15px; }.dw-summary h2 { margin-bottom:11px; }.dw-summary .dw-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }.dw-summary .dw-stat { padding:10px; }.dw-summary .dw-stat strong { font-size:19px; }.dw-project { min-height:0; }
-@container (max-width:700px) { .dw-two { grid-template-columns:1fr; }.dw-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }.dw-cards { grid-template-columns:1fr; } }
-@container (max-width:490px) { .dw-form { grid-template-columns:1fr 1fr; }.dw-milestone { grid-template-columns:57px 14px minmax(0,1fr); }.dw-milestone .dw-btn { grid-column:3; justify-self:start; }.dw-milestone:not(:last-child)::after { left:88px; }.dw-calendar > * { min-height:55px; } }
+.dw {
+  --ink: var(--foreground, #171717);
+  --muted-ink: var(--muted-foreground, #737373);
+  --line: var(--border, #e5e5e5);
+  --paper: var(--card, #fff);
+  --surface: var(--muted, #f7f7f7);
+  --accent: var(--primary, #262626);
+  --accent-fg: var(--primary-foreground, #fff);
+  --radius: var(--radius, .5rem);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 8px 0 40px;
+  min-height: 0;
+  container-type: inline-size;
+}
+.dw *, .dw-modal * { box-sizing: border-box; }
+.dw button, .dw input, .dw select, .dw textarea, .dw-modal button, .dw-modal input, .dw-modal select, .dw-modal textarea { font: inherit; }
+.dw button, .dw-modal button { cursor: pointer; }
+.dw :is(button,a,input,select,textarea):focus-visible, .dw-modal :is(button,a,input,select,textarea):focus-visible { outline: 2px solid var(--ring, #a3a3a3); outline-offset: 2px; }
+.dw h1, .dw h2, .dw-modal h2 { margin: 0; color: var(--ink); }
+.dw h2 { font-size: 14px; font-weight: 600; }
+.dw p { line-height: 1.55; }
+.dw a { color: var(--ink); text-decoration: none; }
+.dw a:hover { text-decoration: underline; }
+.dw-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.dw-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.dw-filters label { color: var(--muted-ink); font-size: 12px; font-weight: 500; }
+.dw-filters select, .dw-filters input { min-height: 36px; border: 1px solid var(--line); border-radius: 6px; padding: 0 10px; background: var(--paper); color: var(--ink); font-size: 14px; }
+.dw-tabs { display: flex; gap: 2px; overflow-x: auto; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+.dw-tabs button { flex: none; min-height: 40px; padding: 0 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted-ink); font-size: 13px; font-weight: 500; }
+.dw-tabs button:hover { color: var(--ink); }
+.dw-tabs button[aria-selected=true] { border-bottom-color: var(--ink); color: var(--ink); font-weight: 600; }
+.dw-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.dw-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.dw-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / .05); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.dw-btn:hover { background: var(--surface); text-decoration: none; }
+.dw-btn:disabled { opacity: .5; cursor: not-allowed; }
+.dw-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.dw-btn.primary:hover { opacity: .88; }
+.dw-btn.quiet { box-shadow: none; }
+.dw-btn.danger { color: var(--destructive, #a43e38); }
+.dw-error { padding: 10px 12px; margin: 10px 0; border: 1px solid var(--destructive, #dba6a2); border-radius: 6px; color: var(--destructive, #a43e38); background: var(--paper); font-size: 13px; }
+.dw-empty { padding: 28px 16px; color: var(--muted-ink); font-size: 13px; }
+.dw-muted { color: var(--muted-ink); font-size: 12px; }
+.dw-stats { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; margin-bottom: 16px; }
+.dw-stat { padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.dw-stat span { display: block; color: var(--muted-ink); font-size: 12px; }
+.dw-stat strong { display: block; margin-top: 6px; color: var(--ink); font-size: 24px; line-height: 1.2; font-weight: 600; }
+.dw-two { display: grid; grid-template-columns: minmax(0,1.5fr) minmax(260px,.9fr); gap: 14px; align-items: start; }
+.dw-stack { display: grid; gap: 14px; }
+.dw-panel { overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.dw-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 52px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.dw-panel > .body { padding: 16px; }
+.dw-row { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.dw-row:first-child { padding-top: 0; }
+.dw-row:last-child { padding-bottom: 0; border-bottom: 0; }
+.dw-row strong { display: block; color: var(--ink); font-size: 14px; font-weight: 500; }
+.dw-row small { display: block; margin-top: 4px; color: var(--muted-ink); font-size: 12px; }
+.dw-pill { display: inline-block; padding: 3px 8px; border-radius: 5px; background: var(--surface); color: var(--muted-ink); font-size: 12px; font-weight: 500; }
+.dw-pill.warm { background: color-mix(in oklch,var(--surface) 75%,#e7b367); color: var(--ink); }
+.dw-pill.gray { background: var(--surface); color: var(--muted-ink); }
+.dw-form { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); margin-bottom: 14px; }
+.dw-form h2 { grid-column: 1/-1; font-size: 16px; font-weight: 600; }
+.dw-form label { display: grid; gap: 6px; color: var(--ink); font-size: 13px; font-weight: 500; }
+.dw-form .wide { grid-column: 1/-1; }
+.dw-form input, .dw-form select, .dw-form textarea { min-width: 0; min-height: 40px; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; color: var(--ink); background: var(--paper); font-size: 14px; }
+.dw-form textarea { min-height: 88px; resize: vertical; }
+.dw-form .check { display: flex; align-items: center; gap: 8px; }
+.dw-form .check input { min-height: auto; width: auto; }
+.dw-form footer { grid-column: 1/-1; display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.dw-modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgb(0 0 0 / .5); --ink:var(--foreground,#171717); --muted-ink:var(--muted-foreground,#737373); --line:var(--border,#e5e5e5); --paper:var(--card,#fff); --surface:var(--muted,#f7f7f7); --accent:var(--primary,#262626); --accent-fg:var(--primary-foreground,#fff); }
+.dw-modal .dw-form { width: min(620px,100%); max-height: calc(100dvh - 48px); overflow-y: auto; grid-template-columns: repeat(2,minmax(0,1fr)); margin: 0; padding: 24px; box-shadow: 0 16px 48px rgb(0 0 0 / .18); }
+.dw-modal .dw-form h2 { padding-right: 32px; margin-bottom: 2px; }
+.dw-modal .dw-form .dw-close { position: absolute; top: 18px; right: 18px; width: 32px; height: 32px; min-height: 0; padding: 0; border: 0; background: transparent; color: var(--muted-ink); box-shadow: none; font-size: 20px; }
+.dw-modal .dw-form { position: relative; }
+.dw-kinds, .dw-cards { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+.dw-kinds { margin-bottom: 14px; }
+.dw-kind, .dw-record, .dw-doc { padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.dw-kind strong { font-size: 14px; font-weight: 500; }
+.dw-kind span { display: block; margin-top: 12px; font-size: 24px; font-weight: 600; }
+.dw-cards { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.dw-record h2, .dw-doc h2 { margin: 10px 0 5px; }
+.dw-record p, .dw-doc p { margin: 8px 0; font-size: 13px; }
+.dw-card-actions { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 12px; }
+.dw-card-actions .dw-btn { min-height: 32px; padding: 0 10px; font-size: 12px; }
+.dw-calendar { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.dw-calendar > * { min-height: 76px; padding: 7px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--paper); }
+.dw-calendar .weekday { min-height: 28px; text-align: center; color: var(--muted-ink); font-size: 12px; background: var(--surface); }
+.dw-calendar button { width: 100%; border-top: 0; border-left: 0; color: var(--ink); text-align: left; font-size: 12px; }
+.dw-calendar button[data-active=true] { background: var(--surface); box-shadow: inset 0 0 0 1px var(--ink); }
+.dw-calendar em { display: block; margin-top: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-radius: 4px; padding: 3px 5px; background: var(--surface); color: var(--ink); font-size: 11px; font-style: normal; }
+.dw-calendar em.milestone { border: 1px solid var(--line); }
+.dw-kr { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.dw-kr:last-child { border: 0; }
+.dw-kr > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dw-kr strong { font-size: 14px; font-weight: 500; }
+.dw-progress { height: 7px; overflow: hidden; border-radius: 8px; background: var(--surface); margin: 10px 0; }
+.dw-progress i { display: block; height: 100%; border-radius: 8px; background: var(--ink); }
+.dw-mini { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.dw-mini input { width: 90px; min-height: 36px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink); font-size: 13px; }
+.dw-timeline { padding: 8px 0; }
+.dw-milestone { position: relative; display: grid; grid-template-columns: 72px 14px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 17px 16px; }
+.dw-milestone:not(:last-child)::after { content: ""; position: absolute; left: 104px; top: 32px; bottom: -32px; width: 2px; background: var(--line); }
+.dw-milestone .dot { z-index: 1; width: 12px; height: 12px; border: 2px solid var(--muted-ink); border-radius: 50%; background: var(--paper); }
+.dw-milestone.done .dot { border-color: var(--ink); background: var(--ink); box-shadow: inset 0 0 0 2px var(--paper); }
+.dw-milestone time { color: var(--muted-ink); font-size: 12px; font-weight: 500; }
+.dw-milestone strong { display: block; font-size: 14px; font-weight: 500; }
+.dw-milestone small { display: block; margin-top: 4px; color: var(--muted-ink); font-size: 12px; }
+.dw-version { padding: 10px 0; border-top: 1px solid var(--line); }
+.dw-version strong { font-size: 13px; font-weight: 600; }
+.dw-version small { margin-left: 8px; color: var(--muted-ink); font-size: 12px; }
+.dw-version details { margin-top: 7px; font-size: 13px; white-space: pre-wrap; }
+.dw-summary { min-height: 0; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.dw-summary h2 { margin-bottom: 12px; }
+.dw-summary .dw-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.dw-summary .dw-stat { padding: 10px; }
+.dw-summary .dw-stat strong { font-size: 20px; }
+.dw-project { min-height: 0; }
+@container (max-width:700px) { .dw-two { grid-template-columns: 1fr; }.dw-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }.dw-cards { grid-template-columns: 1fr; } }
+@container (max-width:490px) { .dw-milestone { grid-template-columns: 57px 14px minmax(0,1fr); }.dw-milestone .dw-btn { grid-column: 3; justify-self: start; }.dw-milestone:not(:last-child)::after { left: 89px; }.dw-calendar > * { min-height: 58px; } }
+@media (max-width:600px) { .dw-modal { align-items: stretch; padding: 12px; }.dw-modal .dw-form { max-height: calc(100dvh - 24px); grid-template-columns: 1fr; padding: 18px; }.dw-modal .dw-form .wide { grid-column: 1; } }
 `;
 
-export function SidebarLink({ context: _context }: PluginSidebarProps) {
+export function SidebarLink({ context }: PluginSidebarProps) {
   const navigation = useHostNavigation();
-  return <a {...navigation.linkProps("/office")} className="flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-foreground/80 transition-colors hover:bg-accent/50 hover:text-foreground"><span aria-hidden="true">▦</span><span>部门工作台</span></a>;
+  const { pathname } = useHostLocation();
+  return <a {...navigation.linkProps(officePath(context.companyPrefix, pathname))} className="flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-foreground/80 transition-colors hover:bg-accent/50 hover:text-foreground"><span aria-hidden="true">▦</span><span>部门工作台</span></a>;
 }
 
 function EntryForm({ kind, data, projectId, initial, onCancel, onSave, busy }: { kind: CreateKind; data: OfficeSnapshot; projectId: string; initial?: OfficeEntry | null; onCancel: () => void; onSave: (payload: Record<string, unknown>) => Promise<boolean>; busy: boolean }) {
@@ -63,6 +171,11 @@ function EntryForm({ kind, data, projectId, initial, onCancel, onSave, busy }: {
   const [authorWithAi, setAuthorWithAi] = useState(false);
   const isGoal = kind === "goal";
   const isJournal = ["meeting", "development", "training"].includes(kind);
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previous; };
+  }, []);
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     const payload: Record<string, unknown> = { kind, title, detail, projectId: project, goalId: kind === "kr" || kind === "milestone" ? goal : "", date: when, pending };
@@ -74,8 +187,9 @@ function EntryForm({ kind, data, projectId, initial, onCancel, onSave, busy }: {
     if (initial) payload.revision = initial.revision;
     if (await onSave(payload)) onCancel();
   };
-  return <form className="dw-form" onSubmit={submit}><h2>{initial ? `编辑${kindNames[kind]}` : `新建${kindNames[kind]}`}</h2>
-    <label className="wide">标题<input required maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} /></label>
+  if (typeof document === "undefined") return null;
+  return createPortal(<div className="dw-modal" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel(); }}><form className="dw-form" role="dialog" aria-modal="true" aria-label={initial ? `编辑${kindNames[kind]}` : `新建${kindNames[kind]}`} onKeyDown={(event) => { if (event.key === "Escape") onCancel(); }} onSubmit={submit}><h2>{initial ? `编辑${kindNames[kind]}` : `新建${kindNames[kind]}`}</h2><button className="dw-close" type="button" aria-label="关闭" onClick={onCancel}>×</button>
+    <label className="wide">标题<input autoFocus required maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} /></label>
     {!isGoal ? <label>项目<select required={kind !== "kr"} value={project} onChange={(event) => setProject(event.target.value)}><option value="">选择项目</option>{data.projects.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label> : null}
     {(kind === "kr" || kind === "milestone") ? <label>目标<select required={kind === "kr"} value={goal} onChange={(event) => setGoal(event.target.value)}><option value="">{kind === "kr" ? "选择目标" : "不关联"}</option>{data.goals.map((item) => <option value={item.id} key={item.id}>{item.title}</option>)}</select></label> : null}
     {!isGoal && kind !== "kr" ? <label>日期<input type="date" required value={when} onChange={(event) => setWhen(event.target.value)} /></label> : null}
@@ -89,7 +203,7 @@ function EntryForm({ kind, data, projectId, initial, onCancel, onSave, busy }: {
     {kind === "document" && !initial ? <label className="check"><input type="checkbox" checked={authorWithAi} onChange={(event) => setAuthorWithAi(event.target.checked)} />AI 协作</label> : null}
     {(isJournal || kind === "document") && !initial ? <label className="check"><input type="checkbox" checked={pending} onChange={(event) => setPending(event.target.checked)} />提交待确认</label> : null}
     <footer><button className="dw-btn primary" type="submit" disabled={busy}>{initial ? "保存修改" : "创建"}</button><button className="dw-btn quiet" type="button" onClick={onCancel}>取消</button></footer>
-  </form>;
+  </form></div>, document.body);
 }
 
 function Workbench({ context }: PluginPageProps) {
@@ -181,20 +295,22 @@ export function OfficePage(props: PluginPageProps) { return <Workbench {...props
 
 export function DashboardWidget({ context }: PluginWidgetProps) {
   const navigation = useHostNavigation();
+  const { pathname } = useHostLocation();
   const request = useMemo(() => ({ companyId: context.companyId ?? "" }), [context.companyId]);
   const query = usePluginData<OfficeSnapshot>("office", request);
   const data = query.data ?? empty;
   const entries = data.entries.filter((entry) => entry.status !== "archived");
   const pending = entries.filter((entry) => entry.status === "pending" || entry.status === "draft").length;
-  return <><style>{css}</style><div className="dw dw-summary"><h2>部门工作台</h2><div className="dw-stats"><div className="dw-stat"><span>项目</span><strong>{data.projects.length}</strong></div><div className="dw-stat"><span>记事</span><strong>{entries.filter((entry) => ["meeting", "development", "training"].includes(entry.kind) && entry.status === "confirmed").length}</strong></div><div className="dw-stat"><span>里程碑</span><strong>{entries.filter((entry) => entry.kind === "milestone").length}</strong></div><div className="dw-stat"><span>待确认</span><strong>{pending}</strong></div></div><a className="dw-btn" {...navigation.linkProps("/office")}>打开工作台</a>{query.error ? <div className="dw-error">读取失败：{query.error.message}</div> : null}</div></>;
+  return <><style>{css}</style><div className="dw dw-summary"><h2>部门工作台</h2><div className="dw-stats"><div className="dw-stat"><span>项目</span><strong>{data.projects.length}</strong></div><div className="dw-stat"><span>记事</span><strong>{entries.filter((entry) => ["meeting", "development", "training"].includes(entry.kind) && entry.status === "confirmed").length}</strong></div><div className="dw-stat"><span>里程碑</span><strong>{entries.filter((entry) => entry.kind === "milestone").length}</strong></div><div className="dw-stat"><span>待确认</span><strong>{pending}</strong></div></div><a className="dw-btn" {...navigation.linkProps(officePath(context.companyPrefix, pathname))}>打开工作台</a>{query.error ? <div className="dw-error">读取失败：{query.error.message}</div> : null}</div></>;
 }
 
 export function ProjectDetail({ context }: PluginDetailTabProps) {
   const navigation = useHostNavigation();
+  const { pathname } = useHostLocation();
   const request = useMemo(() => ({ companyId: context.companyId ?? "" }), [context.companyId]);
   const query = usePluginData<OfficeSnapshot>("office", request);
   const data = query.data ?? empty;
   const entries = data.entries.filter((entry) => entry.projectId === context.entityId && entry.status !== "archived");
   const issues = data.issues.filter((issue) => issue.projectId === context.entityId);
-  return <><style>{css}</style><div className="dw dw-project"><div className="dw-stats"><div className="dw-stat"><span>任务</span><strong>{issues.length}</strong></div><div className="dw-stat"><span>记事</span><strong>{entries.filter((entry) => ["meeting", "development", "training"].includes(entry.kind) && entry.status === "confirmed").length}</strong></div><div className="dw-stat"><span>里程碑</span><strong>{entries.filter((entry) => entry.kind === "milestone").length}</strong></div><div className="dw-stat"><span>文件</span><strong>{entries.filter((entry) => entry.kind === "document" && entry.status === "confirmed").length}</strong></div></div><div className="dw-two"><section className="dw-panel"><header><h2>任务</h2></header><div className="body">{issues.map((issue) => <div className="dw-row" key={issue.id}><strong>{issue.title}</strong><small>{issue.identifier ?? "任务"} · {issue.status}</small></div>)}{!issues.length ? <div className="dw-muted">暂无任务</div> : null}</div></section><section className="dw-panel"><header><h2>里程碑</h2></header><div className="body">{entries.filter((entry) => entry.kind === "milestone").map((entry) => <div className="dw-row" key={entry.id}><strong>{entry.title}</strong><small>{shortDate(entry.date)} · {entry.status === "done" ? "已完成" : "计划中"}</small></div>)}{!entries.some((entry) => entry.kind === "milestone") ? <div className="dw-muted">暂无里程碑</div> : null}<div style={{ marginTop: 12 }}><a className="dw-btn" {...navigation.linkProps(`/office?project=${context.entityId}&view=milestones`)}>打开工作台</a></div></div></section></div>{query.error ? <div className="dw-error">读取失败：{query.error.message}</div> : null}</div></>;
+  return <><style>{css}</style><div className="dw dw-project"><div className="dw-stats"><div className="dw-stat"><span>任务</span><strong>{issues.length}</strong></div><div className="dw-stat"><span>记事</span><strong>{entries.filter((entry) => ["meeting", "development", "training"].includes(entry.kind) && entry.status === "confirmed").length}</strong></div><div className="dw-stat"><span>里程碑</span><strong>{entries.filter((entry) => entry.kind === "milestone").length}</strong></div><div className="dw-stat"><span>文件</span><strong>{entries.filter((entry) => entry.kind === "document" && entry.status === "confirmed").length}</strong></div></div><div className="dw-two"><section className="dw-panel"><header><h2>任务</h2></header><div className="body">{issues.map((issue) => <div className="dw-row" key={issue.id}><strong>{issue.title}</strong><small>{issue.identifier ?? "任务"} · {issue.status}</small></div>)}{!issues.length ? <div className="dw-muted">暂无任务</div> : null}</div></section><section className="dw-panel"><header><h2>里程碑</h2></header><div className="body">{entries.filter((entry) => entry.kind === "milestone").map((entry) => <div className="dw-row" key={entry.id}><strong>{entry.title}</strong><small>{shortDate(entry.date)} · {entry.status === "done" ? "已完成" : "计划中"}</small></div>)}{!entries.some((entry) => entry.kind === "milestone") ? <div className="dw-muted">暂无里程碑</div> : null}<div style={{ marginTop: 12 }}><a className="dw-btn" {...navigation.linkProps(officePath(context.companyPrefix, pathname, `?project=${encodeURIComponent(context.entityId)}&view=milestones`))}>打开工作台</a></div></div></section></div>{query.error ? <div className="dw-error">读取失败：{query.error.message}</div> : null}</div></>;
 }

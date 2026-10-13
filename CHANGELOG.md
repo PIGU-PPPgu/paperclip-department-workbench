@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.9 — 2026-10-13
+
+- Match Paperclip's native typography, spacing, colors, borders, and buttons across the workbench.
+- Show creation and editing forms in a native-style dialog.
+- Fix workbench links in the dashboard widget and project tab so they retain the organization prefix.
+
 ## 1.0.5 — 2026-10-13
 
 - Add native Paperclip workbench views for calendar, journal, OKR, milestones, knowledge, review, and monthly reports.
