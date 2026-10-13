@@ -1,0 +1,32 @@
+{
+  "name": "paperclip-department-workbench",
+  "version": "1.0.5",
+  "type": "module",
+  "private": true,
+  "description": "Department workbench UI for Paperclip",
+  "author": "Wisdom Campus Office",
+  "license": "MIT",
+  "files": ["dist", "migrations", "README.md"],
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.ts"
+  },
+  "paperclipPlugin": {
+    "manifest": "./dist/manifest.js",
+    "worker": "./dist/worker.js",
+    "ui": "./dist/ui/"
+  },
+  "dependencies": {
+    "@paperclipai/plugin-sdk": "2026.916.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.18",
+    "esbuild": "^0.28.2",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2"
+  },
+  "engines": { "node": ">=24.11.0" }
+}
